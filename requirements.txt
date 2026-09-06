@@ -1,0 +1,4 @@
+Flask==2.3.3
+hl7==0.4.5
+jsonschema==4.19.2
+requests==2.31.0
