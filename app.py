@@ -27,6 +27,7 @@ def post_route():
     pid_segment = parsed_message[1]
     patient_name = pid_segment[4]
     patient_mrn = pid_segment[3]
+    patient_dob = pid_segment[7]
 
     # OBX segment
     obx_segment = parsed_message[2]
@@ -41,6 +42,7 @@ def post_route():
         "status": "success",
         "sending_app": sending_app,
         "patient_name": patient_name,
+        "patient_dob": patient_dob,
         "test_name": test_name,
         "test_value": test_value,
         "abnormal_flag": abnormal_flag,
