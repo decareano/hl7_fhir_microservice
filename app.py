@@ -17,6 +17,7 @@ def post_route():
     data = request.get_json()
     hl7_string = data["hl7_message"]
     parsed_message = hl7.parse(hl7_string)
+    print(parsed_message)
 
     # MSH segment
     msh_segment = parsed_message[0]
@@ -30,6 +31,7 @@ def post_route():
     patient_dob = pid_segment[7]
 
     # OBX segment
+    # in this exercise I have only one hardcoded obx segment
     obx_segment = parsed_message[2]
     test_name = obx_segment[3]
     test_value = str(obx_segment[5])
