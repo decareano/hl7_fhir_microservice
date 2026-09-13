@@ -17,7 +17,6 @@ def post_route():
     data = request.get_json()
     hl7_string = data["hl7_message"]
     parsed_message = hl7.parse(hl7_string)
-    print(parsed_message)
 
     # MSH segment
     msh_segment = parsed_message[0]
@@ -30,46 +29,41 @@ def post_route():
     patient_mrn = pid_segment[3]
     patient_dob = pid_segment[7]
 
-    # OBX segment
-    # in this exercise I have only one hardcoded obx segment
-    obx_segment = parsed_message[2]
-    test_name = obx_segment[3]
-    test_value = str(obx_segment[5])
-    units = obx_segment[6]
-    ref_range = obx_segment[7]
-    abnormal_flag = obx_segment[8]
+    # Find all OBX segments
+    obx_segments = []
+    for item in parsed_message:
+        if item[0] == "OBX":
+            obx_segments.append(item)
 
-    # --- Original custom JSON response ---
-    custom_response = {
-        "status": "success",
-        "sending_app": sending_app,
-        "patient_name": patient_name,
-        "patient_dob": patient_dob,
-        "test_name": test_name,
-        "test_value": test_value,
-        "abnormal_flag": abnormal_flag,
-    }
+    # Build a FHIR Observation for each OBX
+    fhir_observations = []
+    for field in obx_segments:
+        test_name = field[3]
+        test_value = str(field[5])
+        units = field[6]
+        ref_range = field[7]
+        abnormal_flag = field[8]
 
-    # --- FHIR Observation ---
-    fhir_observation = {
-        "resourceType": "Observation",
-        "status": "final",
-        "code": {
-            "coding": [
-                {"system": "http://loinc.org", "code": "15074-8", "display": "glucose"}
-            ]
-        },
-        "valueQuantity": {
-            "value": float(test_value),
-            "unit": units,
-            "system": "http://unitsofmeasure.org",
-        },
-    }
+        fhir_observation = {
+            "resourceType": "Observation",
+            "status": "final",
+            "code": {
+                "coding": [
+                    {
+                        "system": "http://loinc.org",
+                        "code": "15074-8",
+                        "display": "glucose",
+                    }
+                ]
+            },
+            "valueQuantity": {
+                "value": float(test_value),
+                "unit": units,
+                "system": "http://unitsofmeasure.org",
+            },
+        }
+        fhir_observations.append(fhir_observation)
 
-    # --- Return both ---
-    return jsonify({"original": custom_response, "fhir": fhir_observation})
-
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=True)
+    return jsonify(
+        {"fhir_observations": fhir_observations, "count": len(fhir_observations)}
+    )
