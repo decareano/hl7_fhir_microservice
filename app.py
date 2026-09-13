@@ -17,6 +17,8 @@ def post_route():
     data = request.get_json()
     hl7_string = data["hl7_message"]
     parsed_message = hl7.parse(hl7_string)
+    len(parsed_message)
+    [seg[0] for seg in parsed_message]
 
     # MSH segment
     msh_segment = parsed_message[0]
