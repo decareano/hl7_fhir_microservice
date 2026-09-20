@@ -1,4 +1,5 @@
-flatten() — cleans nested lists from the hl7 library into strings
+Key Components in app.py
+· flatten() — cleans nested lists from the hl7 library into strings
 · LOINC_MAP — maps HL7 test codes → LOINC codes and display names
 · post_route() — main transformation logic
 
