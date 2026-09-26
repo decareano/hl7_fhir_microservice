@@ -3,6 +3,7 @@ import hl7
 import json
 import jsonschema
 import os
+import re
 
 app = Flask(__name__)
 
@@ -16,6 +17,33 @@ def flatten(value):
             myVar = flatten(item)
             empList.append(myVar)
         return "^".join(empList)
+
+
+def parse_reference_range(raw):
+    if not raw:
+        return None
+    raw = raw.strip()
+    if raw.startswith("<"):
+        try:
+            val = float(raw[1:])
+            return {"high": val, "text": raw}
+        except ValueError:
+            return {"text": raw}
+    if raw.startswith(">"):
+        try:
+            val = float(raw[1:])
+            return {"low": val, "text": raw}
+        except ValueError:
+            return {"text": raw}
+    if "-" in raw:
+        left, _, right = raw.partition("-")
+        try:
+            val_L = float(left)
+            val_R = float(right)
+            return {"low": val_L, "high": val_R, "text": raw}
+        except ValueError:
+            return {"text": raw}
+    return {"text": raw}
 
 
 LOINC_MAP = {
@@ -77,6 +105,7 @@ def post_route():
         )
 
         flag_text = FLAG_DISPLAY.get(abnormal_flag, abnormal_flag)
+        ref_parsed = parse_reference_range(ref_range)
 
         fhir_observation = {
             "resourceType": "Observation",
@@ -107,6 +136,8 @@ def post_route():
                 }
             ],
         }
+        if ref_parsed:
+            fhir_observation["referenceRange"] = [ref_parsed]
         fhir_observations.append(fhir_observation)
 
     return jsonify(
