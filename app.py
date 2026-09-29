@@ -70,6 +70,14 @@ def ping_route():
 @app.route("/transform", methods=["POST"])
 def post_route():
     data = request.get_json()
+    data = request.get_json()
+    if not data or "hl7_message" not in data:
+        return jsonify({"error": "missing hl7_message"}), 400
+    hl7_string = data["hl7_message"]
+    if not isinstance(hl7_string, str):
+        return jsonify({"error": "needs to be a string"}), 400
+    if len(hl7_string) > 10000:
+        return jsonify({"error": "message too long"}), 400
     hl7_string = data["hl7_message"]
     parsed_message = hl7.parse(hl7_string)
 
@@ -95,6 +103,10 @@ def post_route():
     for field in obx_segments:
         test_name = flatten(field[3])
         test_value = flatten(field[5])
+        try:
+            value_num = float(test_value)
+        except ValueError:
+            value_num = None
         units = flatten(field[6])
         ref_range = flatten(field[7])
         abnormal_flag = flatten(field[8])
@@ -119,11 +131,11 @@ def post_route():
                     }
                 ]
             },
-            "valueQuantity": {
-                "value": float(test_value),
-                "unit": units,
-                "system": "http://unitsofmeasure.org",
-            },
+            # "valueQuantity": {
+            #     "value": float(test_value),
+            #     "unit": units,
+            #     "system": "http://unitsofmeasure.org",
+            # },
             "interpretation": [
                 {
                     "coding": [
@@ -136,6 +148,15 @@ def post_route():
                 }
             ],
         }
+        if value_num is not None:
+            fhir_observation["valueQuantity"] = {
+                "value": value_num,
+                "unit": units,
+                "system": "http://unitsofmeasure.org",
+            }
+        else:
+            fhir_observation["valueString"] = [test_value]
+
         if ref_parsed:
             fhir_observation["referenceRange"] = [ref_parsed]
         fhir_observations.append(fhir_observation)
