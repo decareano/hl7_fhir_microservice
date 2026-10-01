@@ -70,7 +70,6 @@ def ping_route():
 @app.route("/transform", methods=["POST"])
 def post_route():
     data = request.get_json()
-    data = request.get_json()
     if not data or "hl7_message" not in data:
         return jsonify({"error": "missing hl7_message"}), 400
     hl7_string = data["hl7_message"]
@@ -78,7 +77,6 @@ def post_route():
         return jsonify({"error": "needs to be a string"}), 400
     if len(hl7_string) > 10000:
         return jsonify({"error": "message too long"}), 400
-    hl7_string = data["hl7_message"]
     parsed_message = hl7.parse(hl7_string)
 
     # MSH segment
