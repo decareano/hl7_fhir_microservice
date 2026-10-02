@@ -159,8 +159,17 @@ def post_route():
             fhir_observation["referenceRange"] = [ref_parsed]
         fhir_observations.append(fhir_observation)
 
+        patient = {
+            "resourceType": "Patient",
+            "identifier": [{"value": patient_mrn}],
+        }
+
     return jsonify(
-        {"fhir_observations": fhir_observations, "count": len(fhir_observations)}
+        {
+            "fhir_observations": fhir_observations,
+            "count": len(fhir_observations),
+            "patient": patient,
+        }
     )
 
 
