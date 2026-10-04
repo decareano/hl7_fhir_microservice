@@ -89,6 +89,10 @@ def post_route():
     patient_name = flatten(pid_segment[4])
     patient_mrn = flatten(pid_segment[3])
     patient_dob = flatten(pid_segment[7])
+    if len(patient_dob) == 8:
+        dob_iso = patient_dob[:4] + "-" + patient_dob[4:6] + "-" + patient_dob[6:8]
+    else:
+        dob_iso = None
 
     # Find all OBX segments
     obx_segments = []
@@ -163,6 +167,9 @@ def post_route():
             "resourceType": "Patient",
             "identifier": [{"value": patient_mrn}],
         }
+
+        if dob_iso:
+            patient["birthDate"] = dob_iso
 
     return jsonify(
         {
