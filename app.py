@@ -88,6 +88,7 @@ def post_route():
     pid_segment = parsed_message[1]
     patient_name = flatten(pid_segment[4])
     patient_mrn = flatten(pid_segment[3])
+    patient_mrn = patient_mrn.split("^")[0]
     patient_dob = flatten(pid_segment[7])
     if len(patient_dob) == 8:
         dob_iso = patient_dob[:4] + "-" + patient_dob[4:6] + "-" + patient_dob[6:8]
