@@ -86,7 +86,7 @@ def post_route():
 
     # PID segment
     pid_segment = parsed_message[1]
-    patient_name = flatten(pid_segment[4])
+    patient_name = flatten(pid_segment[5])
     print("patient_name is:", repr(patient_name))
     name_parts = patient_name.split("^")
     family = name_parts[0]
@@ -185,5 +185,5 @@ def post_route():
 
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5001))
+    port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
