@@ -87,6 +87,12 @@ def post_route():
     # PID segment
     pid_segment = parsed_message[1]
     patient_name = flatten(pid_segment[4])
+    name_parts = patient_name.split("^")
+    family = name_parts[0]
+    if len(name_parts) >= 2:
+        given = name_parts[1]
+    else:
+        given = ""
     patient_mrn = flatten(pid_segment[3])
     patient_mrn = patient_mrn.split("^")[0]
     patient_dob = flatten(pid_segment[7])
@@ -134,11 +140,6 @@ def post_route():
                     }
                 ]
             },
-            # "valueQuantity": {
-            #     "value": float(test_value),
-            #     "unit": units,
-            #     "system": "http://unitsofmeasure.org",
-            # },
             "interpretation": [
                 {
                     "coding": [
@@ -167,6 +168,7 @@ def post_route():
         patient = {
             "resourceType": "Patient",
             "identifier": [{"value": patient_mrn}],
+            "name": [{"family": family, "given": [given]}],
         }
 
         if dob_iso:
