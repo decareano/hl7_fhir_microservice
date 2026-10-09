@@ -153,6 +153,7 @@ def post_route():
             ],
         }
         # need to review code below.
+
         if value_num is not None:
             fhir_observation["valueQuantity"] = {
                 "value": value_num,
