@@ -87,7 +87,6 @@ def post_route():
     # PID segment
     pid_segment = parsed_message[1]
     patient_name = flatten(pid_segment[5])
-    print("patient_name is:", repr(patient_name))
     name_parts = patient_name.split("^")
     family = name_parts[0]
     if len(name_parts) >= 2:
