@@ -1,9 +1,6 @@
 from flask import Flask, request, jsonify
 import hl7
-import json
-import jsonschema
 import os
-import re
 
 app = Flask(__name__)
 
@@ -159,28 +156,29 @@ def post_route():
                 "system": "http://unitsofmeasure.org",
             }
         else:
-            fhir_observation["valueString"] = [test_value]
+            fhir_observation["valueString"] = test_value
 
         if ref_parsed:
             fhir_observation["referenceRange"] = [ref_parsed]
         fhir_observations.append(fhir_observation)
 
-        patient = {
-            "resourceType": "Patient",
-            "identifier": [{"value": patient_mrn}],
-            "name": [{"family": family, "given": [given]}],
-        }
+    patient = {
+        "resourceType": "Patient",
+        "identifier": [{"value": patient_mrn}],
+        "name": [{"family": family, "given": [given]}],
+    }
 
-        if dob_iso:
-            patient["birthDate"] = dob_iso
+    if dob_iso:
+        patient["birthDate"] = dob_iso
 
-    return jsonify(
-        {
-            "fhir_observations": fhir_observations,
-            "count": len(fhir_observations),
-            "patient": patient,
-        }
-    )
+    entries = []
+
+    entries.append({"resource": patient})
+    for obs in fhir_observations:
+        entries.append({"resource": obs})
+    bundle = {"resourceType": "Bundle", "type": "collection", "entry": entries}
+
+    return jsonify(bundle)
 
 
 if __name__ == "__main__":
