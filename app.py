@@ -3,6 +3,7 @@ import hl7
 import os
 
 app = Flask(__name__)
+app.json.sort_keys = False
 
 
 def flatten(value):
@@ -178,7 +179,7 @@ def post_route():
         entries.append({"resource": obs})
     bundle = {"resourceType": "Bundle", "type": "collection", "entry": entries}
 
-    return jsonify(bundle, sort_keys=False)
+    return jsonify(bundle)
 
 
 if __name__ == "__main__":
