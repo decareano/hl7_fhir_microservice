@@ -77,6 +77,14 @@ def post_route():
         return jsonify({"error": "message too long"}), 400
     try:
         parsed_message = hl7.parse(hl7_string)
+        pid_segments = []
+        for item in parsed_message:
+            if str(item[0]) == "PID":
+                pid_segments.append(item)
+        if not pid_segments:
+            raise ValueError("missing PID segment")
+        else:
+            pid_segment = pid_segments[0]
 
         # MSH segment
         msh_segment = parsed_message[0]
