@@ -73,7 +73,7 @@ def post_route():
     hl7_string = data["hl7_message"]
     if not isinstance(hl7_string, str):
         return jsonify({"error": "needs to be a string"}), 400
-    if len(hl7_string) > 10000:
+    if len(hl7_string) > 500:
         return jsonify({"error": "message too long"}), 400
     try:
         parsed_message = hl7.parse(hl7_string)
