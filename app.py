@@ -102,6 +102,7 @@ def post_route():
             given = ""
         patient_mrn = flatten(pid_segment[3])
         patient_mrn = patient_mrn.split("^")[0]
+        patient_ref = "Patient/" + patient_mrn
         patient_dob = flatten(pid_segment[7])
         if len(patient_dob) == 8:
             dob_iso = patient_dob[:4] + "-" + patient_dob[4:6] + "-" + patient_dob[6:8]
@@ -138,6 +139,7 @@ def post_route():
             fhir_observation = {
                 "resourceType": "Observation",
                 "status": "final",
+                "subject": {"reference": patient_ref},
                 "code": {
                     "coding": [
                         {
@@ -176,6 +178,7 @@ def post_route():
             "resourceType": "Patient",
             "identifier": [{"value": patient_mrn}],
             "name": [{"family": family, "given": [given]}],
+            "id": {"value": patient_mrn},
         }
 
         if dob_iso:
