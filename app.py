@@ -140,15 +140,17 @@ def post_route():
                 "resourceType": "Observation",
                 "status": "final",
                 "subject": {"reference": patient_ref},
-                "category": {
-                    "coding": [
-                        {
-                            "system": "http://terminology.hl7.org/CodeSystem/observation-category",
-                            "code": "laboratory",
-                            "display": "Laboratory",
-                        }
-                    ]
-                },
+                "category": [
+                    {
+                        "coding": [
+                            {
+                                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                                "code": "laboratory",
+                                "display": "Laboratory",
+                            }
+                        ]
+                    }
+                ],
                 "code": {
                     "coding": [
                         {
