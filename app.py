@@ -127,6 +127,40 @@ def post_route():
             units = flatten(field[6])
             ref_range = flatten(field[7])
             abnormal_flag = flatten(field[8])
+            obs_datetime = flatten(field[14])
+
+            if len(obs_datetime) == 8:
+                obs_datetime_iso = (
+                    obs_datetime[:4] + "-" + obs_datetime[4:6] + "-" + obs_datetime[6:8]
+                )
+            elif len(obs_datetime) == 12:
+                obs_datetime_iso = (
+                    obs_datetime[:4]
+                    + "-"
+                    + obs_datetime[4:6]
+                    + "-"
+                    + obs_datetime[6:8]
+                    + "T"
+                    + obs_datetime[8:10]
+                    + ":"
+                    + obs_datetime[10:12]
+                )
+            elif len(obs_datetime) == 14:
+                obs_datetime_iso = (
+                    obs_datetime[:4]
+                    + "-"
+                    + obs_datetime[4:6]
+                    + "-"
+                    + obs_datetime[6:8]
+                    + "T"
+                    + obs_datetime[8:10]
+                    + ":"
+                    + obs_datetime[10:12]
+                    + ":"
+                    + obs_datetime[12:14]
+                )
+            else:
+                obs_datetime_iso = None
 
             test_code = test_name.split("^")[0]
             loinc_entry = LOINC_MAP.get(
@@ -183,13 +217,16 @@ def post_route():
 
             if ref_parsed:
                 fhir_observation["referenceRange"] = [ref_parsed]
+
+            if obs_datetime_iso:
+                fhir_observation["effectiveDateTime"] = obs_datetime_iso
             fhir_observations.append(fhir_observation)
 
         patient = {
             "resourceType": "Patient",
             "identifier": [{"value": patient_mrn}],
             "name": [{"family": family, "given": [given]}],
-            "id": {"value": patient_mrn},
+            "id": patient_mrn,
         }
 
         if dob_iso:
