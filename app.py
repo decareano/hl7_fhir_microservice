@@ -127,7 +127,10 @@ def post_route():
             units = flatten(field[6])
             ref_range = flatten(field[7])
             abnormal_flag = flatten(field[8])
-            obs_datetime = flatten(field[14])
+            if len(field) > 14:
+                obs_datetime = flatten(field[14])
+            else:
+                obs_datetime = ""
 
             if len(obs_datetime) == 8:
                 obs_datetime_iso = (
