@@ -147,6 +147,8 @@ def post_route():
                     + obs_datetime[8:10]
                     + ":"
                     + obs_datetime[10:12]
+                    + ":00"
+                    + "Z"
                 )
             elif len(obs_datetime) == 14:
                 obs_datetime_iso = (
@@ -161,6 +163,7 @@ def post_route():
                     + obs_datetime[10:12]
                     + ":"
                     + obs_datetime[12:14]
+                    + "Z"
                 )
             else:
                 obs_datetime_iso = None
