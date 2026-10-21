@@ -44,6 +44,12 @@ def parse_reference_range(raw):
     return {"text": raw}
 
 
+def get_field(segment, index):
+    if len(segment) > index:
+        return flatten(segment[index])
+    return ""
+
+
 LOINC_MAP = {
     "WBC": {"code": "6690-2", "display": "Leukocytes"},
     "RBC": {"code": "789-8", "display": "Erythrocytes"},
@@ -73,14 +79,17 @@ def post_route():
     hl7_string = data["hl7_message"]
     if not isinstance(hl7_string, str):
         return jsonify({"error": "needs to be a string"}), 400
-    if len(hl7_string) > 500:
+    if len(hl7_string) > 5000:
         return jsonify({"error": "message too long"}), 400
     try:
         parsed_message = hl7.parse(hl7_string)
         pid_segments = []
+        obx_segments = []
         for item in parsed_message:
             if str(item[0]) == "PID":
                 pid_segments.append(item)
+            if str(item[0]) == "OBX":
+                obx_segments.append(item)
         if not pid_segments:
             raise ValueError("missing PID segment")
         else:
@@ -88,49 +97,40 @@ def post_route():
 
         # MSH segment
         msh_segment = parsed_message[0]
-        sending_app = flatten(msh_segment[2])
-        receiving_app = flatten(msh_segment[4])
+        sending_app = get_field(msh_segment, 2)
+        receiving_app = get_field(msh_segment, 4)
 
         # PID segment
-        pid_segment = parsed_message[1]
-        patient_name = flatten(pid_segment[5])
+
+        patient_name = get_field(pid_segment, 5)
         name_parts = patient_name.split("^")
         family = name_parts[0]
         if len(name_parts) >= 2:
             given = name_parts[1]
         else:
             given = ""
-        patient_mrn = flatten(pid_segment[3])
+        patient_mrn = get_field(pid_segment, 3)
         patient_mrn = patient_mrn.split("^")[0]
         patient_ref = "Patient/" + patient_mrn
-        patient_dob = flatten(pid_segment[7])
+        patient_dob = get_field(pid_segment, 7)
         if len(patient_dob) == 8:
             dob_iso = patient_dob[:4] + "-" + patient_dob[4:6] + "-" + patient_dob[6:8]
         else:
             dob_iso = None
 
-        # Find all OBX segments
-        obx_segments = []
-        for item in parsed_message:
-            if str(item[0]) == "OBX":
-                obx_segments.append(item)
-
         # Build a FHIR Observation for each OBX
         fhir_observations = []
         for field in obx_segments:
-            test_name = flatten(field[3])
-            test_value = flatten(field[5])
+            test_name = get_field(field, 3)
+            test_value = get_field(field, 5)
             try:
                 value_num = float(test_value)
             except ValueError:
                 value_num = None
-            units = flatten(field[6])
-            ref_range = flatten(field[7])
-            abnormal_flag = flatten(field[8])
-            if len(field) > 14:
-                obs_datetime = flatten(field[14])
-            else:
-                obs_datetime = ""
+            units = get_field(field, 6)
+            ref_range = get_field(field, 7)
+            abnormal_flag = get_field(field, 8)
+            obs_datetime = get_field(field, 14)
 
             if len(obs_datetime) == 8:
                 obs_datetime_iso = (
