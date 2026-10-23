@@ -7,6 +7,8 @@ app.json.sort_keys = False
 
 
 def flatten(value):
+    if value is None:
+        return ""
     if isinstance(value, str):
         return value
     elif isinstance(value, list):
@@ -90,10 +92,19 @@ def post_route():
                 pid_segments.append(item)
             if str(item[0]) == "OBX":
                 obx_segments.append(item)
+            if str(item[0]) == "OBR":
+                obr_segment = item
         if not pid_segments:
             raise ValueError("missing PID segment")
         else:
             pid_segment = pid_segments[0]
+
+        if obr_segment:
+            obr_panel_name = get_field(obr_segment, 4)
+            obr_datetime = get_field(obr_segment, 7)
+        else:
+            obr_panel_name = "Unknown panel"
+            obr_datetime = ""
 
         # MSH segment
         msh_segment = parsed_message[0]
@@ -169,6 +180,7 @@ def post_route():
                 obs_datetime_iso = None
 
             test_code = test_name.split("^")[0]
+            obs_id = "obs-" + test_code
             loinc_entry = LOINC_MAP.get(
                 test_code, {"code": "unknown", "display": test_code}
             )
@@ -177,6 +189,7 @@ def post_route():
             ref_parsed = parse_reference_range(ref_range)
 
             fhir_observation = {
+                "id": obs_id,
                 "resourceType": "Observation",
                 "status": "final",
                 "subject": {"reference": patient_ref},
@@ -200,17 +213,6 @@ def post_route():
                         }
                     ]
                 },
-                "interpretation": [
-                    {
-                        "coding": [
-                            {
-                                "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation",
-                                "code": abnormal_flag,
-                                "display": flag_text,
-                            }
-                        ]
-                    }
-                ],
             }
             if value_num is not None:
                 fhir_observation["valueQuantity"] = {
@@ -221,12 +223,22 @@ def post_route():
             else:
                 fhir_observation["valueString"] = test_value
 
+            if abnormal_flag:
+                fhir_observation["interpretation"] = [
+                    {"coding": [{"code": abnormal_flag, "display": flag_text}]}
+                ]
+
             if ref_parsed:
                 fhir_observation["referenceRange"] = [ref_parsed]
 
             if obs_datetime_iso:
                 fhir_observation["effectiveDateTime"] = obs_datetime_iso
             fhir_observations.append(fhir_observation)
+
+        obs_references = []
+        for ids in fhir_observations:
+            my_id = ids["id"]
+            obs_references.append({"reference": "Observation/" + my_id})
 
         patient = {
             "resourceType": "Patient",
@@ -237,6 +249,15 @@ def post_route():
 
         if dob_iso:
             patient["birthDate"] = dob_iso
+
+        diagnostic_report = {
+            "id": "report-cbc",
+            "resourceType": "DiagnosticReport",
+            "status": "final",
+            "subject": {"reference": patient_ref},
+            "code": {"text": obr_panel_name},
+            "result": obs_references,
+        }
 
         entries = []
 
