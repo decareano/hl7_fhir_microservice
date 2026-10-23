@@ -86,6 +86,7 @@ def post_route():
     try:
         parsed_message = hl7.parse(hl7_string)
         pid_segments = []
+        obr_segment = None
         obx_segments = []
         for item in parsed_message:
             if str(item[0]) == "PID":
@@ -262,9 +263,14 @@ def post_route():
         entries = []
 
         entries.append({"resource": patient})
+        entries.append({"resource": diagnostic_report})
         for obs in fhir_observations:
             entries.append({"resource": obs})
         bundle = {"resourceType": "Bundle", "type": "collection", "entry": entries}
+
+        print(f"--- DEBUG: BUNDLE CREATED WITH {len(entries)} ENTRIES ---")
+        for e in entries:
+            print(f"--- DEBUG RESOURCE: {e['resource']['resourceType']} ---")
 
         return jsonify(bundle)
     except Exception as e:
