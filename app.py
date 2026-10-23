@@ -268,6 +268,10 @@ def post_route():
             entries.append({"resource": obs})
         bundle = {"resourceType": "Bundle", "type": "collection", "entry": entries}
 
+        print(f"--- DEBUG: BUNDLE CREATED WITH {len(entries)} ENTRIES ---")
+        for e in entries:
+            print(f"--- DEBUG RESOURCE: {e['resource']['resourceType']} ---")
+
         return jsonify(bundle)
     except Exception as e:
         print(f"parse error: {e}")
