@@ -262,6 +262,7 @@ def post_route():
         entries = []
 
         entries.append({"resource": patient})
+        entries.append({"resource": diagnostic_report})
         for obs in fhir_observations:
             entries.append({"resource": obs})
         bundle = {"resourceType": "Bundle", "type": "collection", "entry": entries}
