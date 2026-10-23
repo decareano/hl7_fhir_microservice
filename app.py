@@ -86,6 +86,7 @@ def post_route():
     try:
         parsed_message = hl7.parse(hl7_string)
         pid_segments = []
+        obr_segment = None
         obx_segments = []
         for item in parsed_message:
             if str(item[0]) == "PID":
