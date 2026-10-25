@@ -141,9 +141,11 @@ def post_route():
             except ValueError:
                 value_num = None
             units = get_field(field, 6)
-            if value_num is not None and value_num == "":
-                validation_warnings.append(value_num)
-                test_name = "Missing units for test: " + test_name
+            if value_num is not None and units == "":
+                warning_msg = "Missing units for test: " + test_name
+                validation_warnings.append(warning_msg)
+                print(f"DEBUG WARNING TRIGGERED: {warning_msg}", flush=True)
+            # do NOT put the print here. It must be inside the if block.
             ref_range = get_field(field, 7)
             abnormal_flag = get_field(field, 8)
             obs_datetime = get_field(field, 14)
@@ -280,6 +282,7 @@ def post_route():
         entries.append({"resource": diagnostic_report})
         if len(validation_warnings) > 0:
             entries.append({"resource": operation_outcome})
+
         for obs in fhir_observations:
             entries.append({"resource": obs})
         bundle = {"resourceType": "Bundle", "type": "collection", "entry": entries}
