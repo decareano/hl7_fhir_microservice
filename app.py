@@ -269,10 +269,10 @@ def post_route():
                 "resourceType": "OperationOutcome",
                 "issue": [],
             }
-        for msg in validation_warnings:
-            operation_outcome["issue"].append(
-                {"severity": "warning", "code": "incomplete", "diagnostics": msg}
-            )
+            for msg in validation_warnings:
+                operation_outcome["issue"].append(
+                    {"severity": "warning", "code": "incomplete", "diagnostics": msg}
+                )
 
         entries = []
 
