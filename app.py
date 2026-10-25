@@ -132,6 +132,7 @@ def post_route():
 
         # Build a FHIR Observation for each OBX
         fhir_observations = []
+        validation_warnings = []
         for field in obx_segments:
             test_name = get_field(field, 3)
             test_value = get_field(field, 5)
@@ -140,6 +141,9 @@ def post_route():
             except ValueError:
                 value_num = None
             units = get_field(field, 6)
+            if value_num is not None and value_num == "":
+                validation_warnings.append(value_num)
+                test_name = "Missing units for test: " + test_name
             ref_range = get_field(field, 7)
             abnormal_flag = get_field(field, 8)
             obs_datetime = get_field(field, 14)
@@ -260,17 +264,25 @@ def post_route():
             "result": obs_references,
         }
 
+        if len(validation_warnings) > 0:
+            operation_outcome = {
+                "resourceType": "OperationOutcome",
+                "issue": [],
+            }
+        for msg in validation_warnings:
+            operation_outcome["issue"].append(
+                {"severity": "warning", "code": "incomplete", "diagnostics": msg}
+            )
+
         entries = []
 
         entries.append({"resource": patient})
         entries.append({"resource": diagnostic_report})
+        if len(validation_warnings) > 0:
+            entries.append({"resource": operation_outcome})
         for obs in fhir_observations:
             entries.append({"resource": obs})
         bundle = {"resourceType": "Bundle", "type": "collection", "entry": entries}
-
-        print(f"--- DEBUG: BUNDLE CREATED WITH {len(entries)} ENTRIES ---")
-        for e in entries:
-            print(f"--- DEBUG RESOURCE: {e['resource']['resourceType']} ---")
 
         return jsonify(bundle)
     except Exception as e:
