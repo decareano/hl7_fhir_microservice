@@ -6,17 +6,23 @@ app = Flask(__name__)
 app.json.sort_keys = False
 
 
-def flatten(value):
-    if value is None:
+def flatten(a_value):
+    if a_value is None:
         return ""
-    if isinstance(value, str):
-        return value
-    elif isinstance(value, list):
-        empList = []
-        for item in value:
-            myVar = flatten(item)
-            empList.append(myVar)
-        return "^".join(empList)
+    elif isinstance(a_value, str):
+        return a_value
+    elif isinstance(a_value, list):
+        result = []
+        for item in a_value:
+            flat_item = flatten(item)
+            result.append(flat_item)
+        return "^".join(result)
+
+
+def get_field(segment, index):
+    if len(segment) > index:
+        return flatten(segment[index])
+    return ""
 
 
 def parse_reference_range(raw):
@@ -46,25 +52,24 @@ def parse_reference_range(raw):
     return {"text": raw}
 
 
-def get_field(segment, index):
-    if len(segment) > index:
-        return flatten(segment[index])
-    return ""
-
-
 LOINC_MAP = {
     "WBC": {"code": "6690-2", "display": "Leukocytes"},
+    "PROT": {"code": "5804-0", "display": "Protein"},
     "RBC": {"code": "789-8", "display": "Erythrocytes"},
     "HGB": {"code": "718-7", "display": "Hemoglobin"},
     "HCT": {"code": "4544-3", "display": "Hematocrit"},
     "PLT": {"code": "777-3", "display": "Platelets"},
-    "GLU": {"code": "15074-8", "display": "Glucose"},
+    "GLU": {"code": "5792-7", "display": "Glucose"},
+    "K": {"code": "2823-3", "display": "Potassium"},
+    "COLOR": {"code": "5778-6", "display": "Color"},
+    "NIT": {"code": "5802-4", "display": "Nitrite"},
 }
 
 FLAG_DISPLAY = {
     "H": "High",
     "L": "Low",
     "N": "Normal",
+    "A": "Abnormal",
 }
 
 
@@ -78,16 +83,20 @@ def post_route():
     data = request.get_json()
     if not data or "hl7_message" not in data:
         return jsonify({"error": "missing hl7_message"}), 400
+
     hl7_string = data["hl7_message"]
     if not isinstance(hl7_string, str):
         return jsonify({"error": "needs to be a string"}), 400
-    if len(hl7_string) > 5000:
+
+    if len(hl7_string) > 10000:
         return jsonify({"error": "message too long"}), 400
+
     try:
         parsed_message = hl7.parse(hl7_string)
         pid_segments = []
-        obr_segment = None
         obx_segments = []
+        obr_segment = None
+
         for item in parsed_message:
             if str(item[0]) == "PID":
                 pid_segments.append(item)
@@ -95,60 +104,51 @@ def post_route():
                 obx_segments.append(item)
             if str(item[0]) == "OBR":
                 obr_segment = item
+
         if not pid_segments:
             raise ValueError("missing PID segment")
         else:
             pid_segment = pid_segments[0]
 
-        if obr_segment:
-            obr_panel_name = get_field(obr_segment, 4)
-            obr_datetime = get_field(obr_segment, 7)
-        else:
-            obr_panel_name = "Unknown panel"
-            obr_datetime = ""
-
-        # MSH segment
-        msh_segment = parsed_message[0]
-        sending_app = get_field(msh_segment, 2)
-        receiving_app = get_field(msh_segment, 4)
-
-        # PID segment
-
         patient_name = get_field(pid_segment, 5)
-        name_parts = patient_name.split("^")
-        family = name_parts[0]
-        if len(name_parts) >= 2:
-            given = name_parts[1]
+        patient_mrn = get_field(pid_segment, 3)
+        patient_dob = get_field(pid_segment, 7)
+
+        named_parts = patient_name.split("^")
+        family = named_parts[0]
+        if len(named_parts) >= 2:
+            given = named_parts[1]
         else:
             given = ""
-        patient_mrn = get_field(pid_segment, 3)
-        patient_mrn = patient_mrn.split("^")[0]
-        patient_ref = "Patient/" + patient_mrn
-        patient_dob = get_field(pid_segment, 7)
+
+        a_mrn = patient_mrn.split("^")[0]
+        patient_ref = "Patient/" + a_mrn
+
         if len(patient_dob) == 8:
             dob_iso = patient_dob[:4] + "-" + patient_dob[4:6] + "-" + patient_dob[6:8]
         else:
             dob_iso = None
 
-        # Build a FHIR Observation for each OBX
+        if obr_segment:
+            obr_panel_name = get_field(obr_segment, 4)
+        else:
+            obr_panel_name = "Unknown panel"
+
         fhir_observations = []
         validation_warnings = []
+
         for field in obx_segments:
             test_name = get_field(field, 3)
             test_value = get_field(field, 5)
+            units = get_field(field, 6)
+            ref_range = get_field(field, 7)
+            abnormal_flag = get_field(field, 8)
+            obs_datetime = get_field(field, 14)
+
             try:
                 value_num = float(test_value)
             except ValueError:
                 value_num = None
-            units = get_field(field, 6)
-            if value_num is not None and units == "":
-                warning_msg = "Missing units for test: " + test_name
-                validation_warnings.append(warning_msg)
-                print(f"DEBUG WARNING TRIGGERED: {warning_msg}", flush=True)
-            # do NOT put the print here. It must be inside the if block.
-            ref_range = get_field(field, 7)
-            abnormal_flag = get_field(field, 8)
-            obs_datetime = get_field(field, 14)
 
             if len(obs_datetime) == 8:
                 obs_datetime_iso = (
@@ -191,13 +191,16 @@ def post_route():
             loinc_entry = LOINC_MAP.get(
                 test_code, {"code": "unknown", "display": test_code}
             )
-
             flag_text = FLAG_DISPLAY.get(abnormal_flag, abnormal_flag)
             ref_parsed = parse_reference_range(ref_range)
 
+            if value_num is not None and units == "":
+                warning_msg = "Missing units for test: " + test_name
+                validation_warnings.append(warning_msg)
+
             fhir_observation = {
-                "id": obs_id,
                 "resourceType": "Observation",
+                "id": obs_id,
                 "status": "final",
                 "subject": {"reference": patient_ref},
                 "category": [
@@ -221,6 +224,7 @@ def post_route():
                     ]
                 },
             }
+
             if value_num is not None:
                 fhir_observation["valueQuantity"] = {
                     "value": value_num,
@@ -232,7 +236,15 @@ def post_route():
 
             if abnormal_flag:
                 fhir_observation["interpretation"] = [
-                    {"coding": [{"code": abnormal_flag, "display": flag_text}]}
+                    {
+                        "coding": [
+                            {
+                                "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation",
+                                "code": abnormal_flag,
+                                "display": flag_text,
+                            }
+                        ]
+                    }
                 ]
 
             if ref_parsed:
@@ -240,6 +252,7 @@ def post_route():
 
             if obs_datetime_iso:
                 fhir_observation["effectiveDateTime"] = obs_datetime_iso
+
             fhir_observations.append(fhir_observation)
 
         obs_references = []
@@ -249,16 +262,16 @@ def post_route():
 
         patient = {
             "resourceType": "Patient",
-            "identifier": [{"value": patient_mrn}],
+            "identifier": [{"value": a_mrn}],
             "name": [{"family": family, "given": [given]}],
-            "id": patient_mrn,
+            "id": a_mrn,
         }
 
         if dob_iso:
             patient["birthDate"] = dob_iso
 
         diagnostic_report = {
-            "id": "report-cbc",
+            "id": "report-ua",
             "resourceType": "DiagnosticReport",
             "status": "final",
             "subject": {"reference": patient_ref},
@@ -277,17 +290,19 @@ def post_route():
                 )
 
         entries = []
-
         entries.append({"resource": patient})
         entries.append({"resource": diagnostic_report})
+
         if len(validation_warnings) > 0:
             entries.append({"resource": operation_outcome})
 
         for obs in fhir_observations:
             entries.append({"resource": obs})
+
         bundle = {"resourceType": "Bundle", "type": "collection", "entry": entries}
 
         return jsonify(bundle)
+
     except Exception as e:
         print(f"parse error: {e}")
         return jsonify({"error": "could not parse HL7 message"}), 422
