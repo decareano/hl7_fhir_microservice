@@ -122,7 +122,7 @@ def post_route():
             given = ""
 
         a_mrn = patient_mrn.split("^")[0]
-        patient_ref = "Patient/" + a_mrn
+        patient_ref = "urn:uuid:patient-" + a_mrn
 
         if len(patient_dob) == 8:
             dob_iso = patient_dob[:4] + "-" + patient_dob[4:6] + "-" + patient_dob[6:8]
@@ -136,6 +136,7 @@ def post_route():
 
         fhir_observations = []
         validation_warnings = []
+        obs_references = []
 
         for field in obx_segments:
             test_name = get_field(field, 3)
@@ -187,7 +188,8 @@ def post_route():
                 obs_datetime_iso = None
 
             test_code = test_name.split("^")[0]
-            obs_id = "obs-" + test_code
+            obs_id = "urn:uuid:obs-" + test_code
+            obs_references.append({"reference": obs_id})
             loinc_entry = LOINC_MAP.get(
                 test_code, {"code": "unknown", "display": test_code}
             )
@@ -200,7 +202,6 @@ def post_route():
 
             fhir_observation = {
                 "resourceType": "Observation",
-                "id": obs_id,
                 "status": "final",
                 "subject": {"reference": patient_ref},
                 "category": [
@@ -255,16 +256,10 @@ def post_route():
 
             fhir_observations.append(fhir_observation)
 
-        obs_references = []
-        for ids in fhir_observations:
-            my_id = ids["id"]
-            obs_references.append({"reference": "Observation/" + my_id})
-
         patient = {
             "resourceType": "Patient",
             "identifier": [{"value": a_mrn}],
             "name": [{"family": family, "given": [given]}],
-            "id": a_mrn,
         }
 
         if dob_iso:
@@ -290,16 +285,34 @@ def post_route():
                 )
 
         entries = []
-        entries.append({"resource": patient})
-        entries.append({"resource": diagnostic_report})
 
-        if len(validation_warnings) > 0:
-            entries.append({"resource": operation_outcome})
+        entries.append(
+            {
+                "fullUrl": patient_ref,
+                "resource": patient,
+                "request": {"method": "POST", "url": "Patient"},
+            }
+        )
 
-        for obs in fhir_observations:
-            entries.append({"resource": obs})
+        entries.append(
+            {
+                "fullUrl": "urn:uuid:report-ua",
+                "resource": diagnostic_report,
+                "request": {"method": "POST", "url": "DiagnosticReport"},
+            }
+        )
 
-        bundle = {"resourceType": "Bundle", "type": "collection", "entry": entries}
+        for ref, obs in zip(obs_references, fhir_observations):
+            full_url = ref["reference"]
+            entries.append(
+                {
+                    "fullUrl": full_url,
+                    "resource": obs,
+                    "request": {"method": "POST", "url": "Observation"},
+                }
+            )
+
+        bundle = {"resourceType": "Bundle", "type": "transaction", "entry": entries}
 
         return jsonify(bundle)
 
