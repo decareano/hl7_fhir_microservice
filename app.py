@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 import hl7
 import os
 import requests
+import uuid
 
 app = Flask(__name__)
 app.json.sort_keys = False
@@ -123,7 +124,8 @@ def post_route():
             given = ""
 
         a_mrn = patient_mrn.split("^")[0]
-        patient_ref = "urn:uuid:patient-" + a_mrn
+        patient_uuid = str(uuid.uuid4())
+        patient_ref = "urn:uuid:" + patient_uuid
 
         if len(patient_dob) == 8:
             dob_iso = patient_dob[:4] + "-" + patient_dob[4:6] + "-" + patient_dob[6:8]
@@ -189,7 +191,8 @@ def post_route():
                 obs_datetime_iso = None
 
             test_code = test_name.split("^")[0]
-            obs_id = "urn:uuid:obs-" + test_code
+            obs_uuid = str(uuid.uuid4())
+            obs_id = "urn:uuid:" + obs_uuid
             obs_references.append({"reference": obs_id})
             loinc_entry = LOINC_MAP.get(
                 test_code, {"code": "unknown", "display": test_code}
@@ -266,6 +269,8 @@ def post_route():
         if dob_iso:
             patient["birthDate"] = dob_iso
 
+        report_uuid = str(uuid.uuid4())
+
         diagnostic_report = {
             "resourceType": "DiagnosticReport",
             "status": "final",
@@ -290,7 +295,7 @@ def post_route():
 
         entries.append(
             {
-                "fullUrl": "urn:uuid:report-ua",
+                "fullUrl": "urn:uuid:" + report_uuid,
                 "resource": diagnostic_report,
                 "request": {"method": "POST", "url": "DiagnosticReport"},
             }
