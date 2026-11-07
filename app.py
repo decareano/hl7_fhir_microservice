@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 import hl7
 import os
+import requests
 
 app = Flask(__name__)
 app.json.sort_keys = False
@@ -266,7 +267,6 @@ def post_route():
             patient["birthDate"] = dob_iso
 
         diagnostic_report = {
-            "id": "report-ua",
             "resourceType": "DiagnosticReport",
             "status": "final",
             "subject": {"reference": patient_ref},
@@ -274,23 +274,17 @@ def post_route():
             "result": obs_references,
         }
 
-        if len(validation_warnings) > 0:
-            operation_outcome = {
-                "resourceType": "OperationOutcome",
-                "issue": [],
-            }
-            for msg in validation_warnings:
-                operation_outcome["issue"].append(
-                    {"severity": "warning", "code": "incomplete", "diagnostics": msg}
-                )
-
         entries = []
 
         entries.append(
             {
                 "fullUrl": patient_ref,
                 "resource": patient,
-                "request": {"method": "POST", "url": "Patient"},
+                "request": {
+                    "method": "POST",
+                    "url": "Patient",
+                    "ifNoneExist": "identifier=" + a_mrn,
+                },
             }
         )
 
@@ -319,6 +313,23 @@ def post_route():
     except Exception as e:
         print(f"parse error: {e}")
         return jsonify({"error": "could not parse HL7 message"}), 422
+
+
+@app.route("/submit", methods=["POST"])
+def submit_route():
+    bundle_data = request.get_json()
+    if not bundle_data:
+        return jsonify({"error": "body cannot be empty"}), 400
+
+    hapi_url = "https://hapi.fhir.org/baseR4"
+
+    try:
+        response = requests.post(hapi_url, json=bundle_data, timeout=10)
+        return response.json(), response.status_code
+
+    except Exception as e:
+        print(f"{e} : error to report to render")
+        return jsonify({"error": "could not reach fhir server"}), 503
 
 
 if __name__ == "__main__":
