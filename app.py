@@ -321,7 +321,7 @@ def submit_route():
     if not bundle_data:
         return jsonify({"error": "body cannot be empty"}), 400
 
-    hapi_url = "https://hapi.fhir.org/baseR4"
+    firely_url = "https://server.fire.ly"
 
     try:
         response = requests.post(hapi_url, json=bundle_data, timeout=10)
