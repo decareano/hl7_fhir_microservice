@@ -3,9 +3,21 @@ import hl7
 import os
 import requests
 import uuid
+from json import JSONEncoder
+from decimal import Decimal
+
+
+class DecimalEncoder(JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, float):
+            return Decimal(str(obj))
+        else:
+            return super().default(obj)
+
 
 app = Flask(__name__)
 app.json.sort_keys = False
+app.json_encoder = DecimalEncoder
 
 
 def flatten(a_value):
@@ -33,21 +45,21 @@ def parse_reference_range(raw):
     raw = raw.strip()
     if raw.startswith("<"):
         try:
-            val = float(raw[1:])
+            val = Decimal(raw[1:])
             return {"high": val, "text": raw}
         except ValueError:
             return {"text": raw}
     if raw.startswith(">"):
         try:
-            val = float(raw[1:])
+            val = Decimal(raw[1:])
             return {"low": val, "text": raw}
         except ValueError:
             return {"text": raw}
     if "-" in raw:
         left, _, right = raw.partition("-")
         try:
-            val_L = float(left)
-            val_R = float(right)
+            val_L = Decimal(left)
+            val_R = Decimal(right)
             return {"low": val_L, "high": val_R, "text": raw}
         except ValueError:
             return {"text": raw}
