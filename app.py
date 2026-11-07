@@ -324,7 +324,7 @@ def submit_route():
     firely_url = "https://server.fire.ly"
 
     try:
-        response = requests.post(hapi_url, json=bundle_data, timeout=10)
+        response = requests.post(firely_url, json=bundle_data, timeout=10)
         return response.json(), response.status_code
 
     except Exception as e:
